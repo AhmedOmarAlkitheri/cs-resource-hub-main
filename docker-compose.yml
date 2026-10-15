@@ -1,0 +1,8 @@
+services:
+  ahl-alhadith-bot:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3005:3005"
