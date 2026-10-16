@@ -10,16 +10,26 @@ export class AdminCoursesHandler {
     const keyboard = Markup.inlineKeyboard([
       [
         Markup.button.callback('➕ إضافة كورس', 'ach'),
-        Markup.button.callback('🗑️ حذف كورس', 'ec'),
+        Markup.button.callback('✏️ تعديل كورس', 'ec'),
       ],
-      [Markup.button.callback('📌 إسناد كورس لفصل', 'ac')],
+      [
+        Markup.button.callback('🗑️ حذف كورس', 'dc'),
+        Markup.button.callback('📌 إسناد كورس لفصل', 'ac'),
+      ],
+      [
+        Markup.button.callback('🔄 نسخ مقررات سنة دراسية', 'ac_clone_year'),
+      ],
       [Markup.button.callback('🔙 العودة للقائمة الرئيسية', 'main_menu')],
     ]);
 
     await ctx.editMessageText(
-      '📖 **قسم إدارة الكورسات:**\nاختر الإجراء المطلوب:',
+      '📖 <b>قسم إدارة الكورسات والمقررات</b>\n\n' +
+        'اختر الإجراء المطلوب إدارته أدناه:\n' +
+        '• <b>إضافة / تعديل / حذف:</b> إدارة أسماء الكورسات.\n' +
+        '• <b>إسناد كورس:</b> ربط الكورس بكلية ومستوى وفصل وسنة.\n' +
+        '• <b>نسخ مقررات سنة:</b> نسخ جميع المقررات من سنة لأخرى دفعة واحدة.',
       {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         ...keyboard,
       },
     );

@@ -61,10 +61,11 @@ export class PromoteUserHandler {
 
   private async startNewPromote(ctx: Context, userId: number): Promise<void> {
     const message = await ctx.reply(
-      '👤 <b>رفع مستخدم إلى أدمن</b>\n\n' +
-        'أرسل Username المستخدم فقط:\n\n' +
-        'مثال:\n' +
-        '<code>@username</code>',
+      '👤 <b>رفع مستخدم إلى مشرف (أدمن)</b>\n\n' +
+        'أرسل <b>Username</b> المستخدم أو <b>Telegram ID</b>:\n\n' +
+        'أمثلة:\n' +
+        '• <code>@username</code>\n' +
+        '• <code>123456789</code>',
       {
         parse_mode: 'HTML',
       },
@@ -148,35 +149,21 @@ export class PromoteUserHandler {
       return;
     }
 
-    if (username.length > 32) {
-      await ctx.reply('❌ Username غير صالح.');
-
-      return;
-    }
-
-    // Telegram usernames: letters, numbers and underscore
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      await ctx.reply(
-        '❌ Username غير صالح.\n\n' +
-          'استخدم Username مثل:\n' +
-          '<code>@username</code>',
-        {
-          parse_mode: 'HTML',
-        },
-      );
-
-      return;
-    }
-
     // ============================================================
-    // Search user
+    // Search user by Username or Telegram ID
     // ============================================================
 
-    const user = await this.usersService.getByUsername(username);
+    const isNumericId = /^\d+$/.test(username);
+    const user = isNumericId
+      ? await this.usersService.getByTelegramId(username)
+      : await this.usersService.getByUsername(username);
 
     if (!user) {
       await ctx.reply(
-        `❌ لم يتم العثور على المستخدم <b>@${this.escapeHtml(username)}</b>.`,
+        `❌ لم يتم العثور على مستخدم بـ <b>${
+          isNumericId ? 'ID' : 'Username'
+        }: ${this.escapeHtml(username)}</b> في قاعدة بيانات البوت.\n\n` +
+          '<i>ملاحظة: يجب أن يكون المستخدم قد أرسل /start للبوت من قبل لكي يُسجّل في النظام.</i>',
         {
           parse_mode: 'HTML',
         },

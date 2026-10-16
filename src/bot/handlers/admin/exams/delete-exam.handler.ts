@@ -43,6 +43,17 @@ export class DeleteExamHandler {
 
     await ctx.answerCbQuery();
 
+    // Prompt Delete Confirmation
+    if (parts.length === 3 && parts[1] === 'prompt_del') {
+      const examId = Number(parts[2]);
+      if (!Number.isInteger(examId)) {
+        await this.editOrReply(ctx, '❌ رقم الاختبار غير صحيح.');
+        return;
+      }
+      await this.promptDeleteExam(ctx, examId);
+      return;
+    }
+
     // Confirm Delete
     if (parts.length === 3 && parts[1] === 'confirm') {
       const examId = Number(parts[2]);
@@ -186,11 +197,7 @@ export class DeleteExamHandler {
       await this.academicService.getTracksByDepartmentId(departmentId);
 
     if (!tracks.length) {
-      await this.editOrReply(
-        ctx,
-        '❌ لا توجد تخصصات.',
-        Markup.inlineKeyboard([[Markup.button.callback('🔙 السابق', 'de')]]),
-      );
+      await this.handleMajor(ctx, departmentId, 0);
       return;
     }
 
@@ -226,8 +233,14 @@ export class DeleteExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const levels = await this.academicService.getLevels();
+
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+    const backBtn =
+      trackId > 0
+        ? Markup.button.callback('🔙 السابق', `de/${departmentId}`)
+        : Markup.button.callback('🔙 السابق', 'de');
 
     await this.editOrReply(
       ctx,
@@ -235,10 +248,11 @@ export class DeleteExamHandler {
         '<b>🗑️ حذف اختبار</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department?.name ?? '')}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track?.name ?? '')}`,
-        '',
+        trackInfo,
         '<b>الخطوة 3 من 7: اختر المستوى</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...levels.map((level) => [
           Markup.button.callback(
@@ -246,7 +260,7 @@ export class DeleteExamHandler {
             `de/${departmentId}/${trackId}/${level.id}`,
           ),
         ]),
-        [Markup.button.callback('🔙 السابق', `de/${departmentId}`)],
+        [backBtn],
       ]),
     );
   }
@@ -303,10 +317,12 @@ export class DeleteExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
     const academicYears = await this.academicService.getAcademicYears();
+
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
 
     await this.editOrReply(
       ctx,
@@ -314,12 +330,14 @@ export class DeleteExamHandler {
         '<b>🗑️ حذف اختبار</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department?.name ?? '')}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track?.name ?? '')}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level?.name ?? '')}`,
         `<b>🗓️ الفصل:</b> ${this.escapeHtml(term?.name ?? '')}`,
         '',
         '<b>الخطوة 5 من 7: اختر السنة الدراسية</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...academicYears.map((year) => [
           Markup.button.callback(
@@ -351,7 +369,7 @@ export class DeleteExamHandler {
   ) {
     const offerings = await this.academicService.getCoursesByContext({
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -362,7 +380,7 @@ export class DeleteExamHandler {
     if (!offerings.length) {
       await this.editOrReply(
         ctx,
-        '❌ لا توجد مقررات دراسية مضافة.',
+        '❌ لا توجد مقررات دراسية مسندة لهذا الفصل.',
         Markup.inlineKeyboard([
           [Markup.button.callback('🔙 السابق', previousCallback)],
         ]),
@@ -445,7 +463,7 @@ export class DeleteExamHandler {
     const offering = await this.academicService.findCourseOffering({
       courseId,
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -483,10 +501,36 @@ export class DeleteExamHandler {
         ...exams.map((exam) => [
           Markup.button.callback(
             `🗑️ ${exam.title}`,
-            `de/confirm/${exam.id}`,
+            `de/prompt_del/${exam.id}`,
           ),
         ]),
         [Markup.button.callback('🔙 السابق', backCallback)],
+      ]),
+    );
+  }
+
+  // ============================================================
+  // Prompt Delete Exam Confirmation
+  // ============================================================
+
+  private async promptDeleteExam(ctx: Context, examId: number) {
+    const exam = await this.examService.getExamById(examId);
+    const title = exam ? exam.title : `اختبار #${examId}`;
+
+    await this.editOrReply(
+      ctx,
+      '⚠️ <b>تأكيد حذف الاختبار</b>\n\n' +
+        `📝 <b>اسم الاختبار:</b> ${this.escapeHtml(title)}\n` +
+        `🆔 <b>رقم المعرّف:</b> <code>${examId}</code>\n\n` +
+        'هل أنت متأكد من رغبتك بحذف هذا الاختبار نهائياً من قاعدة البيانات؟',
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            '⚠️ نعم، احذف الاختبار نهائياً',
+            `de/confirm/${examId}`,
+          ),
+        ],
+        [Markup.button.callback('❌ إلغاء وتراجع', 'de')],
       ]),
     );
   }
@@ -497,13 +541,18 @@ export class DeleteExamHandler {
 
   private async deleteExam(ctx: Context, examId: number) {
     try {
+      const exam = await this.examService.getExamById(examId);
+      const title = exam ? exam.title : '';
+
       await this.examService.deleteExam(examId);
 
       await this.editOrReply(
         ctx,
-        '✅ <b>تم حذف الاختبار بنجاح من قاعدة البيانات!</b>',
+        `✅ <b>تم حذف الاختبار بنجاح!</b>\n\n` +
+          (title ? `📝 <b>الاختبار المحذوف:</b> ${this.escapeHtml(title)}` : ''),
         Markup.inlineKeyboard([
           [Markup.button.callback('🗑️ حذف اختبار آخر', 'de')],
+          [Markup.button.callback('📝 قسم الامتحانات', 'admin_exams')],
           [Markup.button.callback('🏠 الرئيسية', 'main_menu')],
         ]),
       );

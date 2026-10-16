@@ -105,7 +105,7 @@ export class ExternalHandler {
           [Markup.button.callback('📄 إضافة مصدر', 'external_add_resource')],
           [Markup.button.callback('🗑️ حذف تصنيف', 'external_delete_category')],
           [Markup.button.callback('🗑️ حذف مصدر', 'external_delete_resource')],
-          [Markup.button.callback('🔙 رجوع', 'back_to_main')],
+          [Markup.button.callback('🔙 العودة للقائمة الرئيسية', 'main_menu')],
         ]),
       },
     );

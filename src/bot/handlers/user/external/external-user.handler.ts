@@ -327,17 +327,36 @@ export class ExternalUserHandler {
     await ctx.answerCbQuery(`📚 جاري إرسال ${resources.length} ملف...`);
 
     for (const resource of resources) {
+      let sent = false;
       try {
         await ctx.telegram.copyMessage(
           ctx.chat!.id,
           resource.telegramChatId,
           resource.telegramMessageId,
         );
+        sent = true;
       } catch (error) {
         console.error(
-          `[ExternalUserHandler] Failed to send resource id=${resource.id}`,
+          `[ExternalUserHandler] Failed to copyMessage for resource id=${resource.id}`,
           error,
         );
+      }
+
+      if (!sent && resource.telegramFileId) {
+        try {
+          await ctx.replyWithDocument(resource.telegramFileId, {
+            caption: resource.caption
+              ? `📄 <b>${resource.title}</b>\n\n${resource.caption}`
+              : `📄 <b>${resource.title}</b>`,
+            parse_mode: 'HTML',
+          });
+          sent = true;
+        } catch (docErr) {
+          console.error(
+            `[ExternalUserHandler] Failed to send document by fileId id=${resource.id}`,
+            docErr,
+          );
+        }
       }
     }
 

@@ -12,6 +12,7 @@ import { EditCourseHandler } from '../admin/courses/edit-course.handler';
 import { AddExamHandler } from '../admin/exams/add-exam.handler';
 import { PromoteUserHandler } from '../admin/users/promote-user.handler';
 import { DemoteAdminHandler } from '../admin/users/demote-user.handler';
+import { DeleteUserHandler } from '../admin/users/delete-user.handler';
 
 import { ExternalResourceService } from 'src/external/services/external-resource.service';
 import { GeminiMcpService } from 'src/ai/services/gemini-mcp.service';
@@ -26,6 +27,7 @@ export class CentralTextHandler {
     private readonly addExamHandler: AddExamHandler,
     private readonly pomoteUserHandler: PromoteUserHandler,
     private readonly demoteAdminHandler: DemoteAdminHandler,
+    private readonly deleteUserHandler: DeleteUserHandler,
     private readonly externalResourceService: ExternalResourceService,
     private readonly geminiMcpService: GeminiMcpService,
   ) {}
@@ -315,12 +317,37 @@ export class CentralTextHandler {
         // إنشاء المصدر
         // --------------------------------------------------------
 
+        let finalChatId = telegramChatId;
+        let finalMessageId = telegramMessageId;
+
+        const storageChannel = process.env.MATERIAL_STORAGE_CHANNEL_ID;
+        if (storageChannel) {
+          try {
+            const copied = await ctx.telegram.copyMessage(
+              storageChannel,
+              telegramChatId,
+              telegramMessageId,
+              {
+                caption: `📄 <b>${title}</b>\n\n${caption}`,
+                parse_mode: 'HTML',
+              },
+            );
+            finalChatId = storageChannel;
+            finalMessageId = copied.message_id;
+          } catch (err) {
+            console.warn(
+              '[CentralTextHandler] Failed to copy external resource to storage channel, saving original:',
+              err,
+            );
+          }
+        }
+
         await this.externalResourceService.createResource({
           categoryId,
           title,
           caption,
-          telegramChatId,
-          telegramMessageId,
+          telegramChatId: finalChatId,
+          telegramMessageId: finalMessageId,
           telegramFileId,
         });
 
@@ -386,6 +413,16 @@ export class CentralTextHandler {
 
       case BotEventType.WAITING_DEMOTE_ADMIN: {
         await this.demoteAdminHandler.handleUsername(ctx);
+
+        return;
+      }
+
+      // ==========================================================
+      // حذف مستخدم
+      // ==========================================================
+
+      case BotEventType.WAITING_DELETE_USER: {
+        await this.deleteUserHandler.handleInput(ctx);
 
         return;
       }

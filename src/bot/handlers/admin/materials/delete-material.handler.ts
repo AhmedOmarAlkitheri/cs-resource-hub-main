@@ -39,6 +39,16 @@ export class DeleteMaterialHandler {
 
     await ctx.answerCbQuery();
 
+    if (parts.length === 3 && parts[1] === 'prompt_del') {
+      const materialId = Number(parts[2]);
+      if (!Number.isInteger(materialId)) {
+        await this.editOrReply(ctx, '❌ رقم الملزمة غير صحيح.');
+        return;
+      }
+      await this.promptDeleteMaterial(ctx, materialId);
+      return;
+    }
+
     if (parts.length === 3 && parts[1] === 'confirm') {
       const materialId = Number(parts[2]);
       if (!Number.isInteger(materialId)) {
@@ -170,11 +180,7 @@ export class DeleteMaterialHandler {
       await this.academicService.getTracksByDepartmentId(departmentId);
 
     if (!tracks.length) {
-      await this.editOrReply(
-        ctx,
-        '❌ لا توجد تخصصات.',
-        Markup.inlineKeyboard([[Markup.button.callback('🔙 السابق', 'dm')]]),
-      );
+      await this.handleMajor(ctx, departmentId, 0);
       return;
     }
 
@@ -205,12 +211,23 @@ export class DeleteMaterialHandler {
     trackId: number,
   ) {
     const levels = await this.academicService.getLevels();
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+    const backBtn =
+      trackId > 0
+        ? Markup.button.callback('🔙 السابق', `dm/${departmentId}`)
+        : Markup.button.callback('🔙 السابق', 'dm');
 
     await this.editOrReply(
       ctx,
-      ['<b>🗑️ حذف ملزمة</b>', '', '<b>الخطوة 3 من 7: اختر المستوى</b>'].join(
-        '\n',
-      ),
+      [
+        '<b>🗑️ حذف ملزمة</b>',
+        '',
+        trackInfo,
+        '<b>الخطوة 3 من 7: اختر المستوى</b>',
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...levels.map((level) => [
           Markup.button.callback(
@@ -218,7 +235,7 @@ export class DeleteMaterialHandler {
             `dm/${departmentId}/${trackId}/${level.id}`,
           ),
         ]),
-        [Markup.button.callback('🔙 السابق', `dm/${departmentId}`)],
+        [backBtn],
       ]),
     );
   }
@@ -291,7 +308,7 @@ export class DeleteMaterialHandler {
   ) {
     const offerings = await this.academicService.getCoursesByContext({
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -302,7 +319,7 @@ export class DeleteMaterialHandler {
     if (!offerings.length) {
       await this.editOrReply(
         ctx,
-        '❌ لا توجد مقررات.',
+        '❌ لا توجد مقررات دراسية مسندة لهذا الفصل.',
         Markup.inlineKeyboard([
           [Markup.button.callback('🔙 السابق', previousCallback)],
         ]),
@@ -377,7 +394,7 @@ export class DeleteMaterialHandler {
     const offering = await this.academicService.findCourseOffering({
       courseId,
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -418,7 +435,7 @@ export class DeleteMaterialHandler {
         ...materials.map((m) => [
           Markup.button.callback(
             `🗑️ ${m.title}`,
-            `dm/confirm/${m.id}`,
+            `dm/prompt_del/${m.id}`,
           ),
         ]),
         [Markup.button.callback('🔙 السابق', backCallback)],
@@ -426,15 +443,42 @@ export class DeleteMaterialHandler {
     );
   }
 
+  private async promptDeleteMaterial(ctx: Context, materialId: number) {
+    const material = await this.materialService.getMaterialById(materialId);
+    const title = material ? material.title : `ملزمة #${materialId}`;
+
+    await this.editOrReply(
+      ctx,
+      '⚠️ <b>تأكيد حذف الملزمة</b>\n\n' +
+        `📄 <b>اسم الملزمة:</b> ${this.escapeHtml(title)}\n` +
+        `🆔 <b>رقم المعرّف:</b> <code>${materialId}</code>\n\n` +
+        'هل أنت متأكد من رغبتك بحذف هذه الملزمة نهائياً من قاعدة البيانات؟',
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            '⚠️ نعم، احذف الملزمة نهائياً',
+            `dm/confirm/${materialId}`,
+          ),
+        ],
+        [Markup.button.callback('❌ إلغاء وتراجع', 'dm')],
+      ]),
+    );
+  }
+
   private async deleteMaterial(ctx: Context, materialId: number) {
     try {
+      const material = await this.materialService.getMaterialById(materialId);
+      const title = material ? material.title : '';
+
       await this.materialService.deleteMaterial(materialId);
 
       await this.editOrReply(
         ctx,
-        '✅ <b>تم حذف الملزمة بنجاح من قاعدة البيانات!</b>',
+        `✅ <b>تم حذف الملزمة بنجاح!</b>\n\n` +
+          (title ? `📄 <b>الملزمة المحذوفة:</b> ${this.escapeHtml(title)}` : ''),
         Markup.inlineKeyboard([
           [Markup.button.callback('🗑️ حذف ملزمة أخرى', 'dm')],
+          [Markup.button.callback('📂 قسم الملازم', 'admin_materials')],
           [Markup.button.callback('🏠 الرئيسية', 'main_menu')],
         ]),
       );

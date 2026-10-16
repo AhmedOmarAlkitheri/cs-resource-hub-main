@@ -188,4 +188,16 @@ export class AcademicService {
       this.courseOfferingRepository.findOne(params),
     );
   }
+
+  async getOfferingsByAcademicYear(academicYearId: number) {
+    return this.courseOfferingRepository.findByAcademicYear(academicYearId);
+  }
+
+  async cloneYearOfferings(sourceYearId: number, targetYearId: number) {
+    this.clearCache();
+    return this.courseOfferingRepository.cloneYearOfferings(
+      sourceYearId,
+      targetYearId,
+    );
+  }
 }

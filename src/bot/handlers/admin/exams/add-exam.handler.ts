@@ -269,11 +269,7 @@ export class AddExamHandler {
       await this.academicService.getTracksByDepartmentId(departmentId);
 
     if (!tracks.length) {
-      await this.editOrReply(
-        ctx,
-        '❌ لا توجد تخصصات مضافة لهذه الكلية.',
-        Markup.inlineKeyboard([[Markup.button.callback('🔙 السابق', 'ae')]]),
-      );
+      await this.handleMajor(ctx, departmentId, 0);
       return;
     }
 
@@ -309,9 +305,9 @@ export class AddExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
 
-    if (!department || !track) {
+    if (!department || (trackId > 0 && !track)) {
       await this.editOrReply(ctx, '❌ البيانات غير صحيحة.');
       return;
     }
@@ -323,16 +319,23 @@ export class AddExamHandler {
       return;
     }
 
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+    const backBtn =
+      trackId > 0
+        ? Markup.button.callback('🔙 السابق (التخصصات)', `ae/${departmentId}`)
+        : Markup.button.callback('🔙 السابق (الكليات)', 'ae');
+
     await this.editOrReply(
       ctx,
       [
         '<b>📝 إضافة اختبار جديد</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department.name)}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}`,
-        '',
+        trackInfo,
         '<b>الخطوة 3 من 7: اختر المستوى الدراسي</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...levels.map((level) => [
           Markup.button.callback(
@@ -340,7 +343,7 @@ export class AddExamHandler {
             `ae/${departmentId}/${trackId}/${level.id}`,
           ),
         ]),
-        [Markup.button.callback('🔙 السابق (التخصصات)', `ae/${departmentId}`)],
+        [backBtn],
       ]),
     );
   }
@@ -357,10 +360,10 @@ export class AddExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
 
-    if (!department || !track || !level) {
+    if (!department || (trackId > 0 && !track) || !level) {
       await this.editOrReply(ctx, '❌ البيانات غير صحيحة.');
       return;
     }
@@ -372,17 +375,21 @@ export class AddExamHandler {
       return;
     }
 
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+
     await this.editOrReply(
       ctx,
       [
         '<b>📝 إضافة اختبار جديد</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department.name)}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level.name)}`,
         '',
         '<b>الخطوة 4 من 7: اختر الفصل الدراسي</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...terms.map((term) => [
           Markup.button.callback(
@@ -413,11 +420,11 @@ export class AddExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
 
-    if (!department || !track || !level || !term) {
+    if (!department || (trackId > 0 && !track) || !level || !term) {
       await this.editOrReply(ctx, '❌ البيانات غير صحيحة.');
       return;
     }
@@ -429,18 +436,22 @@ export class AddExamHandler {
       return;
     }
 
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+
     await this.editOrReply(
       ctx,
       [
         '<b>📝 إضافة اختبار جديد</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department.name)}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level.name)}`,
         `<b>🗓️ الفصل:</b> ${this.escapeHtml(term.name)}`,
         '',
         '<b>الخطوة 5 من 7: اختر السنة الدراسية</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...academicYears.map((year) => [
           Markup.button.callback(
@@ -472,25 +483,27 @@ export class AddExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
     const academicYear = await this.academicService.getAcademicYearById(yearId);
 
-    if (!department || !track || !level || !term || !academicYear) {
+    if (!department || (trackId > 0 && !track) || !level || !term || !academicYear) {
       await this.editOrReply(ctx, '❌ البيانات غير صحيحة.');
       return;
     }
 
     const offerings = await this.academicService.getCoursesByContext({
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
     });
 
     const previousCallback = `ae/${departmentId}/${trackId}/${levelId}/${termId}`;
+
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
 
     if (!offerings.length) {
       await this.editOrReply(
@@ -499,13 +512,15 @@ export class AddExamHandler {
           '<b>📝 إضافة اختبار جديد</b>',
           '',
           `<b>🏛️ الكلية:</b> ${this.escapeHtml(department.name)}`,
-          `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}`,
+          trackInfo,
           `<b>📚 المستوى:</b> ${this.escapeHtml(level.name)}`,
           `<b>🗓️ الفصل:</b> ${this.escapeHtml(term.name)}`,
           `<b>📅 السنة:</b> ${academicYear.startYear} - ${academicYear.endYear}`,
           '',
           '❌ لا توجد مقررات دراسية مضافة لهذا الاختيار.',
-        ].join('\n'),
+        ]
+          .filter(Boolean)
+          .join('\n'),
         Markup.inlineKeyboard([
           [Markup.button.callback('🔙 السابق', previousCallback)],
         ]),
@@ -519,13 +534,15 @@ export class AddExamHandler {
         '<b>📝 إضافة اختبار جديد</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department.name)}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level.name)}`,
         `<b>🗓️ الفصل:</b> ${this.escapeHtml(term.name)}`,
         `<b>📅 السنة:</b> ${academicYear.startYear} - ${academicYear.endYear}`,
         '',
         '<b>الخطوة 6 من 7: اختر المقرر / المادة</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...offerings.map((offering) => [
           Markup.button.callback(
@@ -553,7 +570,7 @@ export class AddExamHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
     const academicYear = await this.academicService.getAcademicYearById(yearId);
@@ -561,18 +578,19 @@ export class AddExamHandler {
     const offering = await this.academicService.findCourseOffering({
       courseId,
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
     });
 
-    if (!offering || !department || !track || !level || !term || !academicYear) {
+    if (!offering || !department || (trackId > 0 && !track) || !level || !term || !academicYear) {
       await this.editOrReply(ctx, '❌ المقرر غير موجود.');
       return;
     }
 
     const basePath = `ae/${departmentId}/${trackId}/${levelId}/${termId}/${yearId}/${courseId}`;
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
 
     await this.editOrReply(
       ctx,
@@ -580,14 +598,16 @@ export class AddExamHandler {
         '<b>📝 إضافة اختبار جديد</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department.name)}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level.name)}`,
         `<b>🗓️ الفصل:</b> ${this.escapeHtml(term.name)}`,
         `<b>📅 السنة:</b> ${academicYear.startYear} - ${academicYear.endYear}`,
         `<b>📖 المادة:</b> ${this.escapeHtml(offering.course.name)}`,
         '',
         '<b>الخطوة 7 من 7: اختر نوع الاختبار</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         [
           Markup.button.callback('📝 اختبار شهري', `${basePath}/T`),
@@ -631,7 +651,7 @@ export class AddExamHandler {
     const offering = await this.academicService.findCourseOffering({
       courseId,
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -644,7 +664,7 @@ export class AddExamHandler {
 
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
 

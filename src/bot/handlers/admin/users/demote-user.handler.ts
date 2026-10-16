@@ -35,10 +35,11 @@ export class DemoteAdminHandler {
 
   private async startNewDemote(ctx: Context, userId: number): Promise<void> {
     const message = await ctx.reply(
-      '👤 <b>خفض أدمن إلى مستخدم عادي</b>\n\n' +
-        'أرسل Username الأدمن فقط:\n\n' +
-        'مثال:\n' +
-        '<code>@username</code>',
+      '👤 <b>خفض مشرف إلى مستخدم عادي</b>\n\n' +
+        'أرسل <b>Username</b> المشرف أو <b>Telegram ID</b>:\n\n' +
+        'أمثلة:\n' +
+        '• <code>@username</code>\n' +
+        '• <code>123456789</code>',
       {
         parse_mode: 'HTML',
       },
@@ -78,27 +79,22 @@ export class DemoteAdminHandler {
     username = username.trim();
 
     if (!username) {
-      await ctx.reply('❌ أرسل Username صحيح.');
+      await ctx.reply('❌ يرجى إرسال Username أو Telegram ID صحيح.');
       return;
     }
 
-    if (username.length > 32) {
-      await ctx.reply('❌ Username غير صحيح.');
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      await ctx.reply('❌ Username غير صحيح.');
-      return;
-    }
-
-    const user = await this.usersService.getByUsername(username);
+    const isNumericId = /^\d+$/.test(username);
+    const user = isNumericId
+      ? await this.usersService.getByTelegramId(username)
+      : await this.usersService.getByUsername(username);
 
     if (!user) {
       this.botEventService.delete(userId);
 
       await ctx.reply(
-        `❌ لم يتم العثور على المستخدم <b>@${this.escapeHtml(username)}</b>.`,
+        `❌ لم يتم العثور على مستخدم بـ <b>${
+          isNumericId ? 'ID' : 'Username'
+        }: ${this.escapeHtml(username)}</b>.`,
         {
           parse_mode: 'HTML',
         },

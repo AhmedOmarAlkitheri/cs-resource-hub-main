@@ -192,11 +192,8 @@ export class AddMaterialHandler {
       await this.academicService.getTracksByDepartmentId(departmentId);
 
     if (!tracks.length) {
-      await this.editOrReply(
-        ctx,
-        '❌ لا توجد تخصصات.',
-        Markup.inlineKeyboard([[Markup.button.callback('🔙 السابق', 'am')]]),
-      );
+      // الكلية ليس لها تخصصات فرعية، الانتقال مباشرة لاختيار المستوى
+      await this.handleMajor(ctx, departmentId, 0);
       return;
     }
 
@@ -232,8 +229,14 @@ export class AddMaterialHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const levels = await this.academicService.getLevels();
+
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+    const backBtn =
+      trackId > 0
+        ? Markup.button.callback('🔙 السابق (التخصصات)', `am/${departmentId}`)
+        : Markup.button.callback('🔙 السابق (الكليات)', 'am');
 
     await this.editOrReply(
       ctx,
@@ -241,10 +244,11 @@ export class AddMaterialHandler {
         '<b>📚 إضافة ملزمة جديدة</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department?.name ?? '')}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track?.name ?? '')}`,
-        '',
+        trackInfo,
         '<b>الخطوة 3 من 7: اختر المستوى الدراسي</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...levels.map((level) => [
           Markup.button.callback(
@@ -252,7 +256,7 @@ export class AddMaterialHandler {
             `am/${departmentId}/${trackId}/${level.id}`,
           ),
         ]),
-        [Markup.button.callback('🔙 السابق (التخصصات)', `am/${departmentId}`)],
+        [backBtn],
       ]),
     );
   }
@@ -269,9 +273,11 @@ export class AddMaterialHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const terms = await this.academicService.getTerms();
+
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
 
     await this.editOrReply(
       ctx,
@@ -279,11 +285,13 @@ export class AddMaterialHandler {
         '<b>📚 إضافة ملزمة جديدة</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department?.name ?? '')}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track?.name ?? '')}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level?.name ?? '')}`,
         '',
         '<b>الخطوة 4 من 7: اختر الفصل الدراسي</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...terms.map((term) => [
           Markup.button.callback(
@@ -314,10 +322,12 @@ export class AddMaterialHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
     const academicYears = await this.academicService.getAcademicYears();
+
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
 
     await this.editOrReply(
       ctx,
@@ -325,12 +335,14 @@ export class AddMaterialHandler {
         '<b>📚 إضافة ملزمة جديدة</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department?.name ?? '')}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track?.name ?? '')}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level?.name ?? '')}`,
         `<b>🗓️ الفصل:</b> ${this.escapeHtml(term?.name ?? '')}`,
         '',
         '<b>الخطوة 5 من 7: اختر السنة الدراسية</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...academicYears.map((year) => [
           Markup.button.callback(
@@ -362,14 +374,14 @@ export class AddMaterialHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
     const academicYear = await this.academicService.getAcademicYearById(yearId);
 
     const offerings = await this.academicService.getCoursesByContext({
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -380,7 +392,7 @@ export class AddMaterialHandler {
     if (!offerings.length) {
       await this.editOrReply(
         ctx,
-        '❌ لا توجد مقررات دراسية مضافة.',
+        '❌ لا توجد مقررات دراسية مسندة لهذا الفصل.',
         Markup.inlineKeyboard([
           [Markup.button.callback('🔙 السابق', previousCallback)],
         ]),
@@ -388,19 +400,23 @@ export class AddMaterialHandler {
       return;
     }
 
+    const trackInfo = track ? `<b>🎯 التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+
     await this.editOrReply(
       ctx,
       [
         '<b>📚 إضافة ملزمة جديدة</b>',
         '',
         `<b>🏛️ الكلية:</b> ${this.escapeHtml(department?.name ?? '')}`,
-        `<b>🎯 التخصص:</b> ${this.escapeHtml(track?.name ?? '')}`,
+        trackInfo,
         `<b>📚 المستوى:</b> ${this.escapeHtml(level?.name ?? '')}`,
         `<b>🗓️ الفصل:</b> ${this.escapeHtml(term?.name ?? '')}`,
         `<b>📅 السنة:</b> ${academicYear?.startYear} - ${academicYear?.endYear}`,
         '',
         '<b>الخطوة 6 من 7: اختر المقرر / المادة</b>',
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       Markup.inlineKeyboard([
         ...offerings.map((offering) => [
           Markup.button.callback(
@@ -429,7 +445,7 @@ export class AddMaterialHandler {
     const offering = await this.academicService.findCourseOffering({
       courseId,
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -490,7 +506,7 @@ export class AddMaterialHandler {
     const offering = await this.academicService.findCourseOffering({
       courseId,
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -507,7 +523,7 @@ export class AddMaterialHandler {
       event: BotEventType.WAITING_MATERIAL_DOCUMENT,
       data: {
         departmentId,
-        trackId,
+        trackId: trackId > 0 ? trackId : undefined,
         levelId,
         termId,
         academicYearId: yearId,
