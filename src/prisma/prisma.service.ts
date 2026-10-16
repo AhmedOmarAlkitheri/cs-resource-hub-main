@@ -16,8 +16,25 @@ export class PrismaService
   partner: any;
 
   async onModuleInit() {
-    await this.$connect();
-    this.logger.log('Database connected successfully');
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        await this.$connect();
+        this.logger.log('Database connected successfully');
+        return;
+      } catch (error) {
+        retries -= 1;
+        this.logger.warn(
+          `Database connection attempt failed (${(error as Error).message}). Retries remaining: ${retries}`,
+        );
+        if (retries === 0) {
+          this.logger.error('Could not connect to database after 5 attempts.');
+          throw error;
+        }
+        // انتظار ثانيتين قبل إعادة المحاولة لمنح قاعدة البيانات وقتاً للاستيقاظ
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
   }
 
   async onModuleDestroy() {

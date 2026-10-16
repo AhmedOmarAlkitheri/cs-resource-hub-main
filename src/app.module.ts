@@ -8,6 +8,8 @@ import { TelegramCallbackGuard } from './bot/guards/telegram-callback.guard';
 import { ExternalModule } from './external/external.module';
 import { AiModule } from './ai/ai.module';
 
+import { AppController } from './app.controller';
+
 @Module({
   imports: [
     // 1. تحميل ملف الـ .env وجعله متاحاً في كامل التطبيق
@@ -20,6 +22,9 @@ import { AiModule } from './ai/ai.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         token: configService.get('BOT_TOKEN')!,
+        launchOptions: {
+          dropPendingUpdates: true,
+        },
       }),
     }),
 
@@ -28,6 +33,7 @@ import { AiModule } from './ai/ai.module';
     ExternalModule,
     AiModule,
   ],
+  controllers: [AppController],
 
   providers: [
     {
