@@ -481,19 +481,20 @@ export class ExamsHandler {
   ) {
     const department =
       await this.academicService.getDepartmentById(departmentId);
-    const track = await this.academicService.getTrackById(trackId);
+    const track =
+      trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
     const level = await this.academicService.getLevelById(levelId);
     const term = await this.academicService.getTermById(termId);
     const academicYear = await this.academicService.getAcademicYearById(yearId);
 
-    if (!department || !track || !level || !term || !academicYear) {
+    if (!department || !level || !term || !academicYear) {
       await ctx.answerCbQuery('البيانات المحددة غير صحيحة.');
       return;
     }
 
     const offerings = await this.academicService.getCoursesByContext({
       departmentId,
-      trackId,
+      trackId: trackId > 0 ? trackId : undefined,
       levelId,
       termId,
       academicYearId: yearId,
@@ -501,12 +502,13 @@ export class ExamsHandler {
 
     await ctx.answerCbQuery();
 
+    const trackText = track ? `🎯 <b>التخصص:</b> ${this.escapeHtml(track.name)}\n` : '';
+
     if (!offerings.length) {
       await ctx.editMessageText(
         `
 🏛️ <b>الكلية:</b> ${this.escapeHtml(department.name)}
-🎯 <b>التخصص:</b> ${this.escapeHtml(track.name)}
-📚 <b>المستوى:</b> ${this.escapeHtml(level.name)}
+${trackText}📚 <b>المستوى:</b> ${this.escapeHtml(level.name)}
 🗓️ <b>الفصل:</b> ${this.escapeHtml(term.name)}
 📅 <b>السنة:</b> ${academicYear.startYear} - ${academicYear.endYear}
 
@@ -532,8 +534,7 @@ export class ExamsHandler {
     await ctx.editMessageText(
       `
 🏛️ <b>الكلية:</b> ${this.escapeHtml(department.name)}
-🎯 <b>التخصص:</b> ${this.escapeHtml(track.name)}
-📚 <b>المستوى:</b> ${this.escapeHtml(level.name)}
+${trackText}📚 <b>المستوى:</b> ${this.escapeHtml(level.name)}
 🗓️ <b>الفصل:</b> ${this.escapeHtml(term.name)}
 📅 <b>السنة:</b> ${academicYear.startYear} - ${academicYear.endYear}
 

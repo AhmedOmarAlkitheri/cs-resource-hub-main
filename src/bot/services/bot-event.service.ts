@@ -89,10 +89,10 @@ export interface BotEvent {
   event: BotEventType;
 
   // معرف الرسالة التي بدأ منها الـ Event
-  messageId: number;
+  messageId?: number;
 
   // معرف المحادثة
-  chatId: string;
+  chatId?: string;
 
   // وقت إنشاء العملية
   createdAt: number;
@@ -100,20 +100,6 @@ export interface BotEvent {
   // ============================================================
   // بيانات إضافية مؤقتة
   // ============================================================
-  //
-  // تستخدم عندما تحتاج العملية الاحتفاظ ببيانات
-  // بين أكثر من خطوة.
-  //
-  // مثال تعديل الكورس:
-  //
-  // data: {
-  //   courseId: 15,
-  // }
-  //
-  // ويمكن لاحقًا استخدامها في الملزمات والاختبارات وغيرها.
-  //
-  // ============================================================
-
   data?: Record<string, unknown>;
 }
 
@@ -126,25 +112,11 @@ export class BotEventService {
   // ============================================================
   // تخزين Events في الذاكرة
   // ============================================================
-  //
-  // Key:
-  // userId
-  //
-  // Value:
-  // BotEvent
-  //
-  // ============================================================
-
   private readonly events = new Map<number, BotEvent>();
 
   // ============================================================
   // مدة صلاحية العملية
   // ============================================================
-  //
-  // 5 دقائق
-  //
-  // ============================================================
-
   private readonly EVENT_TIMEOUT = 5 * 60 * 1000;
 
   // ============================================================
@@ -154,8 +126,8 @@ export class BotEventService {
   set(data: {
     userId: number;
     event: BotEventType;
-    messageId: number;
-    chatId: string;
+    messageId?: number;
+    chatId?: string;
 
     // بيانات إضافية اختيارية
     data?: Record<string, unknown>;
@@ -163,14 +135,9 @@ export class BotEventService {
     const event: BotEvent = {
       userId: data.userId,
       event: data.event,
-      messageId: data.messageId,
-      chatId: data.chatId,
+      messageId: data.messageId ?? 0,
+      chatId: data.chatId ?? '',
       createdAt: Date.now(),
-
-      // ==========================================================
-      // حفظ البيانات الإضافية إذا تم إرسالها
-      // ==========================================================
-
       data: data.data,
     };
 
@@ -251,6 +218,15 @@ export class BotEventService {
     // ============================================================
 
     if (!current) {
+      if (data.event) {
+        return this.set({
+          userId,
+          event: data.event,
+          messageId: data.messageId,
+          chatId: data.chatId,
+          data: data.data,
+        });
+      }
       return undefined;
     }
 

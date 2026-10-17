@@ -180,5 +180,18 @@ export class CourseOfferingRepository {
 
     return { copied, skipped, totalSource: sourceOfferings.length };
   }
+
+  async delete(id: number) {
+    return this.prisma.courseOffering.delete({
+      where: { id },
+    });
+  }
+
+  async updateTerm(id: number, termId: number) {
+    return this.prisma.courseOffering.update({
+      where: { id },
+      data: { termId },
+    });
+  }
 }
 

@@ -240,4 +240,14 @@ export class AcademicService {
       targetYearId,
     );
   }
+
+  async deleteCourseOffering(id: number) {
+    this.clearCache();
+    return this.courseOfferingRepository.delete(id);
+  }
+
+  async updateCourseOfferingTerm(id: number, termId: number) {
+    this.clearCache();
+    return this.courseOfferingRepository.updateTerm(id, termId);
+  }
 }

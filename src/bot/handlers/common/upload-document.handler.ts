@@ -186,6 +186,14 @@ export class UploadDocumentHandler {
         `DOCUMENT ignored: no active bot event userId=${userId}`,
       );
 
+      await ctx.reply(
+        '⚠️ <b>لم يتم تحديد المقرر أو نوع الملف</b>\n\n' +
+          'يرجى الذهاب إلى لوحة التحكم واختيار <b>إضافة ملزمة</b> أو <b>إضافة اختبار</b> وتحديد المقرر أولاً، ثم إرسال الملف عندما يُطلب منك ذلك.',
+        {
+          parse_mode: 'HTML',
+        },
+      );
+
       return;
     }
 

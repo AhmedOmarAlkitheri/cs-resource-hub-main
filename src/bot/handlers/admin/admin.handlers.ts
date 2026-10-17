@@ -3,6 +3,7 @@ import { AssignCourseHandler } from './courses/assign-course.handler';
 import { AddCourseHandler } from './courses/add-course.handler';
 import { DeleteCourseHandler } from './courses/delete-course.handler';
 import { CloneYearHandler } from './courses/clone-year.handler';
+import { ManageOfferingsHandler } from './courses/manage-offerings.handler';
 
 import { AddMaterialHandler } from './materials/add-material.handler';
 import { DeleteMaterialHandler } from './materials/delete-material.handler';
@@ -24,6 +25,7 @@ export const AdminHandlers = [
   EditCourseHandler,
   DeleteCourseHandler,
   AssignCourseHandler,
+  ManageOfferingsHandler,
   CloneYearHandler,
 
   AddMaterialHandler,

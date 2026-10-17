@@ -645,10 +645,7 @@ export class AssignCourseHandler {
       },
     });
 
-    const prefix =
-      trackId !== undefined
-        ? `ac/${courseId}/${departmentId}/${levelId}/${trackId}/${termId}`
-        : `ac/${courseId}/${departmentId}/${levelId}/${termId}`;
+    const prefix = `ac/${courseId}/${departmentId}/${trackId !== undefined ? trackId : 0}/${levelId}/${termId}`;
 
     await this.editCurrentMessage(
       ctx,
@@ -810,34 +807,18 @@ export class AssignCourseHandler {
 
     // ------------------------------------------------------------
     // الاحتفاظ بالبيانات
-    // حتى نستطيع إسناد نفس المادة لسنة أخرى
     // ------------------------------------------------------------
+    // حذف الحدث عند اكتمال الإسناد لضمان عدم حدوث تعارض لاحقًا
+    // ------------------------------------------------------------
+    this.botEventService.delete(userId);
 
-    this.botEventService.update(userId, {
-      event: BotEventType.WAITING_COURSE_OFFERING_ACADEMIC_YEAR,
-
-      data: {
-        courseId: data.courseId,
-
-        departmentId: data.departmentId,
-
-        levelId: data.levelId,
-
-        trackId: data.trackId,
-
-        termId: data.termId,
-
-        academicYearId: data.academicYearId,
-      },
-    });
+    const safeTrackId = data.trackId || 0;
 
     // ------------------------------------------------------------
     // النتيجة
     // ------------------------------------------------------------
-
     await this.editCurrentMessage(
       ctx,
-
       '✅ <b>تم إسناد الكورس بنجاح</b>\n\n' +
         `📚 الكورس: <b>${this.escapeHtml(course.name)}</b>\n` +
         `🏫 القسم: <b>${this.escapeHtml(department.name)}</b>\n` +
@@ -846,27 +827,176 @@ export class AssignCourseHandler {
         `📖 الترم: <b>${this.escapeHtml(term.name)}</b>\n` +
         `📅 السنة الدراسية: <b>${academicYear.startYear} - ${academicYear.endYear}</b>\n\n` +
         `🆔 Offering ID: <code>${offering.id}</code>`,
-
       {
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: '🔄 إسناد نفس المادة لسنة أخرى',
-
-                callback_data: 'ac/repeat-year',
+                text: '➕ إسناد مادة أخرى لنفس الفصل',
+                callback_data: `ac_same/${data.departmentId}/${safeTrackId}/${data.levelId}/${data.termId}/${data.academicYearId}/1`,
               },
             ],
             [
               {
-                text: '📚 إسناد مادة أخرى',
-
+                text: '📋 عرض مقررات هذا الفصل',
+                callback_data: `ac_manage/${data.departmentId}/${safeTrackId}/${data.levelId}/${data.termId}/${data.academicYearId}`,
+              },
+            ],
+            [
+              {
+                text: '🔄 إسناد نفس المادة لسنة أخرى',
+                callback_data: `ac_repeat/${data.courseId}/${data.departmentId}/${safeTrackId}/${data.levelId}/${data.termId}`,
+              },
+            ],
+            [
+              {
+                text: '📚 إسناد مادة جديدة (من البداية)',
                 callback_data: 'ac',
+              },
+            ],
+            [
+              {
+                text: '🏠 قسم الكورسات',
+                callback_data: 'admin_courses',
               },
             ],
           ],
         },
       },
+    );
+  }
+
+  // ============================================================
+  // إسناد مادة أخرى لنفس الفصل مباشرة (توفير الوقت)
+  // ============================================================
+
+  @Action(/^ac_same\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)(?:\/(\d+))?$/)
+  async handleSameContext(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery();
+    const match = (ctx.callbackQuery as any)?.data?.split('/');
+    if (!match || match.length < 6) return;
+
+    const departmentId = Number(match[1]);
+    const trackId = Number(match[2]);
+    const levelId = Number(match[3]);
+    const termId = Number(match[4]);
+    const yearId = Number(match[5]);
+    const page = match[6] ? Number(match[6]) : 1;
+
+    const department = await this.academicService.getDepartmentById(departmentId);
+    const track = trackId > 0 ? await this.academicService.getTrackById(trackId) : null;
+    const level = await this.academicService.getLevelById(levelId);
+    const term = await this.academicService.getTermById(termId);
+    const academicYear = await this.academicService.getAcademicYearById(yearId);
+
+    const limit = 8;
+    const result = await this.courseService.getCoursesPaginated(page, limit);
+
+    const pickPrefix = `ac_pick/${departmentId}/${trackId}/${levelId}/${termId}/${yearId}`;
+    const pagePrefix = `ac_same/${departmentId}/${trackId}/${levelId}/${termId}/${yearId}`;
+
+    const keyboard = [
+      ...result.courses.map((c) => [
+        {
+          text: `📖 ${c.name}`,
+          callback_data: `${pickPrefix}/${c.id}`,
+        },
+      ]),
+      [
+        ...(result.page > 1
+          ? [{ text: '⬅️ السابق', callback_data: `${pagePrefix}/${result.page - 1}` }]
+          : []),
+        ...(result.page < result.totalPages
+          ? [{ text: 'التالي ➡️', callback_data: `${pagePrefix}/${result.page + 1}` }]
+          : []),
+      ],
+      [
+        {
+          text: '🔙 العودة لقسم الكورسات',
+          callback_data: 'admin_courses',
+        },
+      ],
+    ];
+
+    await this.editCurrentMessage(
+      ctx,
+      `📚 <b>إسناد مادة أخرى لنفس الفصل:</b>\n\n` +
+        `🏛️ الكلية: <b>${this.escapeHtml(department?.name ?? '')}</b>\n` +
+        (track ? `🎯 التخصص: <b>${this.escapeHtml(track.name)}</b>\n` : '') +
+        `📚 المستوى: <b>${this.escapeHtml(level?.name ?? '')}</b>\n` +
+        `🗓️ الفصل: <b>${this.escapeHtml(term?.name ?? '')}</b>\n` +
+        `📅 السنة: <b>${academicYear?.startYear} - ${academicYear?.endYear}</b>\n\n` +
+        `اختر المقرر المراد إسناده:`,
+      { reply_markup: { inline_keyboard: keyboard } },
+    );
+  }
+
+  @Action(/^ac_pick\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)$/)
+  async handleSameContextPick(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery();
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const match = (ctx.callbackQuery as any)?.data?.split('/');
+    if (!match || match.length < 7) return;
+
+    const departmentId = Number(match[1]);
+    const trackId = Number(match[2]);
+    const levelId = Number(match[3]);
+    const termId = Number(match[4]);
+    const academicYearId = Number(match[5]);
+    const courseId = Number(match[6]);
+
+    await this.finishAssignment(ctx, userId, {
+      courseId,
+      departmentId,
+      trackId: trackId > 0 ? trackId : undefined,
+      levelId,
+      termId,
+      academicYearId,
+    });
+  }
+
+  @Action(/^ac_repeat\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)$/)
+  async handleRepeatYearAction(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery();
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const match = (ctx.callbackQuery as any)?.data?.split('/');
+    if (!match || match.length < 6) return;
+
+    const courseId = Number(match[1]);
+    const departmentId = Number(match[2]);
+    const trackId = Number(match[3]);
+    const levelId = Number(match[4]);
+    const termId = Number(match[5]);
+
+    const years = await this.academicService.getAcademicYears();
+    if (!years.length) {
+      await this.editCurrentMessage(ctx, '❌ لا توجد سنوات دراسية حاليًا.');
+      return;
+    }
+
+    this.botEventService.set({
+      userId,
+      event: BotEventType.WAITING_COURSE_OFFERING_ACADEMIC_YEAR,
+      data: {
+        courseId,
+        departmentId,
+        trackId,
+        levelId,
+        termId,
+      },
+    });
+
+    const prefix = `ac/${courseId}/${departmentId}/${trackId}/${levelId}/${termId}`;
+
+    await this.editCurrentMessage(
+      ctx,
+      '🔄 <b>إسناد نفس المادة لسنة أخرى</b>\n\n' +
+        '📅 اختر السنة الدراسية الجديدة:',
+      academicYearKeyboard(years, prefix),
     );
   }
 

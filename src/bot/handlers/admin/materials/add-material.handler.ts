@@ -15,7 +15,8 @@ import { BotEventConflictService } from 'src/bot/services/bot-conflict.service';
 @Injectable()
 @Update()
 export class AddMaterialHandler {
-  private readonly STORAGE_CHANNEL_ID = process.env.MATERIAL_STORAGE_CHANNEL_ID;
+  private readonly STORAGE_CHANNEL_ID =
+    process.env.MATERIAL_STORAGE_CHANNEL_ID || process.env.STORAGE_CHANNEL_ID;
 
   constructor(
     private readonly academicService: AcademicService,
@@ -519,8 +520,11 @@ export class AddMaterialHandler {
 
     const userId = this.getUserId(ctx);
 
-    this.botEventService.update(userId, {
+    this.botEventService.set({
+      userId,
       event: BotEventType.WAITING_MATERIAL_DOCUMENT,
+      messageId: ctx.callbackQuery?.message?.message_id,
+      chatId: ctx.chat?.id ? String(ctx.chat.id) : undefined,
       data: {
         departmentId,
         trackId: trackId > 0 ? trackId : undefined,

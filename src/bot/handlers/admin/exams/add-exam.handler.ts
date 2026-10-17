@@ -670,11 +670,14 @@ export class AddExamHandler {
 
     const userId = this.getUserId(ctx);
 
-    this.botEventService.update(userId, {
+    this.botEventService.set({
+      userId,
       event: BotEventType.WAITING_EXAM_DOCUMENT,
+      messageId: ctx.callbackQuery?.message?.message_id,
+      chatId: ctx.chat?.id ? String(ctx.chat.id) : undefined,
       data: {
         departmentId,
-        trackId,
+        trackId: trackId > 0 ? trackId : undefined,
         levelId,
         termId,
         academicYearId: yearId,
