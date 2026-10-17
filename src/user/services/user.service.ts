@@ -38,6 +38,32 @@ export class UsersService {
     return await this.userRepository.updateRole(id, isAdmin);
   }
 
+  // Update granular permissions
+  async updatePermissions(id: string, permissions: string[]) {
+    return await this.userRepository.updatePermissions(id, permissions);
+  }
+
+  // Check granular permission
+  async hasPermission(id: string, permission: string): Promise<boolean> {
+    const superAdminId = process.env.SUPER_ADMIN_ID;
+    if (superAdminId && String(id) === String(superAdminId)) {
+      return true;
+    }
+
+    const user = await this.getByTelegramId(id);
+    if (!user || !user.isAdmin) {
+      return false;
+    }
+
+    const perms = (user.permissions as string[]) || [];
+    // إذا كان المشرف يملك صلاحية ALL أو ليس لديه قيود (مشرف سابق)
+    if (perms.includes('ALL') || perms.length === 0) {
+      return true;
+    }
+
+    return perms.includes(permission);
+  }
+
   // Delete User
   async delete(id: string) {
     return this.userRepository.delete(id);

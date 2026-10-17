@@ -1,13 +1,28 @@
 import { Update, Action, Ctx } from 'nestjs-telegraf';
 import { Context, Markup } from 'telegraf';
 
+import { UsersService } from 'src/user/services/user.service';
+
 @Update()
 export class AdminUsersHandler {
+  constructor(private readonly usersService: UsersService) {}
+
   @Action('admin_users')
   async handleAdminUsers(@Ctx() ctx: Context) {
     await ctx.answerCbQuery();
+    const telegramId = String(ctx.from?.id);
+    const hasPerm = await this.usersService.hasPermission(telegramId, 'USERS');
+    if (!hasPerm) {
+      await ctx.answerCbQuery('⛔ ليس لديك صلاحية لإدارة المستخدمين والمشرفين.', {
+        show_alert: true,
+      });
+      return;
+    }
 
     const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('🛡️ إدارة الصلاحيات المخصصة', 'admin_manage_permissions'),
+      ],
       [
         Markup.button.callback('⬆️ ترقية مشرف', 'puh'),
         Markup.button.callback('⬇️ تنزيل مشرف', 'dah'),

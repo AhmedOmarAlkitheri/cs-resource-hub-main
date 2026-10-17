@@ -1,11 +1,23 @@
 import { Update, Action, Ctx } from 'nestjs-telegraf';
 import { Context, Markup } from 'telegraf';
 
+import { UsersService } from 'src/user/services/user.service';
+
 @Update()
 export class AdminMaterialsHandler {
+  constructor(private readonly usersService: UsersService) {}
+
   @Action('admin_materials')
   async handleAdminMaterials(@Ctx() ctx: Context) {
     await ctx.answerCbQuery();
+    const telegramId = String(ctx.from?.id);
+    const hasPerm = await this.usersService.hasPermission(telegramId, 'MATERIALS');
+    if (!hasPerm) {
+      await ctx.answerCbQuery('⛔ ليس لديك صلاحية لإدارة الملازم والمذكرات.', {
+        show_alert: true,
+      });
+      return;
+    }
 
     const keyboard = Markup.inlineKeyboard([
       [

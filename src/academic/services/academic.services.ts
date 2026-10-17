@@ -59,6 +59,16 @@ export class AcademicService {
     );
   }
 
+  async createDepartment(name: string) {
+    this.clearCache();
+    return this.departmentRepository.create(name);
+  }
+
+  async deleteDepartment(id: number) {
+    this.clearCache();
+    return this.departmentRepository.delete(id);
+  }
+
   // ============================================================
   // Levels
   // ============================================================
@@ -73,6 +83,16 @@ export class AcademicService {
     return this.getOrSetCache(`level_${id}`, () =>
       this.levelRepository.findById(id),
     );
+  }
+
+  async createLevel(number: number, name: string) {
+    this.clearCache();
+    return this.levelRepository.create(number, name);
+  }
+
+  async deleteLevel(id: number) {
+    this.clearCache();
+    return this.levelRepository.delete(id);
   }
 
   // ============================================================
@@ -107,6 +127,16 @@ export class AcademicService {
     );
   }
 
+  async createAcademicYear(startYear: number, endYear: number) {
+    this.clearCache();
+    return this.academicYearRepository.create(startYear, endYear);
+  }
+
+  async deleteAcademicYear(id: number) {
+    this.clearCache();
+    return this.academicYearRepository.delete(id);
+  }
+
   // ============================================================
   // Tracks
   // ============================================================
@@ -127,6 +157,16 @@ export class AcademicService {
     return this.getOrSetCache(`tracks_dept_${departmentId}`, () =>
       this.trackRepository.findByDepartmentId(departmentId),
     );
+  }
+
+  async createTrack(departmentId: number, name: string) {
+    this.clearCache();
+    return this.trackRepository.create(departmentId, name);
+  }
+
+  async deleteTrack(id: number) {
+    this.clearCache();
+    return this.trackRepository.delete(id);
   }
 
   // ============================================================

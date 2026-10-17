@@ -33,4 +33,26 @@ export class TrackRepository {
       },
     });
   }
+
+  async create(departmentId: number, name: string) {
+    return this.prisma.track.create({
+      data: {
+        departmentId,
+        name,
+      },
+    });
+  }
+
+  async delete(id: number) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. حذف المقررات المسندة لهذا التخصص
+      await tx.courseOffering.deleteMany({
+        where: { trackId: id },
+      });
+      // 2. حذف التخصص
+      return tx.track.delete({
+        where: { id },
+      });
+    });
+  }
 }

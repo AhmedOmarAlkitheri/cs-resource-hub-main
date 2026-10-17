@@ -20,4 +20,26 @@ export class LevelRepository {
       },
     });
   }
+
+  async create(number: number, name: string) {
+    return this.prisma.level.create({
+      data: {
+        number,
+        name,
+      },
+    });
+  }
+
+  async delete(id: number) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. حذف المقررات المسندة لهذا المستوى
+      await tx.courseOffering.deleteMany({
+        where: { levelId: id },
+      });
+      // 2. حذف المستوى
+      return tx.level.delete({
+        where: { id },
+      });
+    });
+  }
 }

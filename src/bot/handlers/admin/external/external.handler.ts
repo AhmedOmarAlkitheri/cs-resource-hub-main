@@ -7,6 +7,7 @@ import {
   BotEventService,
   BotEventType,
 } from 'src/bot/services/bot-event.service';
+import { UsersService } from 'src/user/services/user.service';
 
 @Update()
 export class ExternalHandler {
@@ -23,6 +24,7 @@ export class ExternalHandler {
   constructor(
     private readonly externalResourceService: ExternalResourceService,
     private readonly botEventService: BotEventService,
+    private readonly usersService: UsersService,
   ) {}
 
   // ============================================================
@@ -94,6 +96,16 @@ export class ExternalHandler {
 
   @Action('admin_sources')
   async handleAdminSources(@Ctx() ctx: Context) {
+    await ctx.answerCbQuery();
+    const telegramId = String(ctx.from?.id);
+    const hasPerm = await this.usersService.hasPermission(telegramId, 'EXTERNAL');
+    if (!hasPerm) {
+      await ctx.answerCbQuery('⛔ ليس لديك صلاحية لإدارة المصادر الخارجية.', {
+        show_alert: true,
+      });
+      return;
+    }
+
     await this.cancelEvent(ctx);
 
     await ctx.editMessageText(

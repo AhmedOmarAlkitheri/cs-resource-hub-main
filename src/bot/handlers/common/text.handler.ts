@@ -13,7 +13,9 @@ import { AddExamHandler } from '../admin/exams/add-exam.handler';
 import { PromoteUserHandler } from '../admin/users/promote-user.handler';
 import { DemoteAdminHandler } from '../admin/users/demote-user.handler';
 import { DeleteUserHandler } from '../admin/users/delete-user.handler';
-
+import { ManagePermissionsHandler } from '../admin/users/manage-permissions.handler';
+import { AcademicService } from 'src/academic/services/academic.services';
+import { UsersService } from 'src/user/services/user.service';
 import { ExternalResourceService } from 'src/external/services/external-resource.service';
 import { GeminiMcpService } from 'src/ai/services/gemini-mcp.service';
 
@@ -28,6 +30,9 @@ export class CentralTextHandler {
     private readonly pomoteUserHandler: PromoteUserHandler,
     private readonly demoteAdminHandler: DemoteAdminHandler,
     private readonly deleteUserHandler: DeleteUserHandler,
+    private readonly managePermissionsHandler: ManagePermissionsHandler,
+    private readonly academicService: AcademicService,
+    private readonly usersService: UsersService,
     private readonly externalResourceService: ExternalResourceService,
     private readonly geminiMcpService: GeminiMcpService,
   ) {}
@@ -424,6 +429,182 @@ export class CentralTextHandler {
       case BotEventType.WAITING_DELETE_USER: {
         await this.deleteUserHandler.handleInput(ctx);
 
+        return;
+      }
+
+      // ==========================================================
+      // إدارة الصلاحيات المخصصة - البحث عن مستخدم
+      // ==========================================================
+
+      case BotEventType.WAITING_USER_PERMISSIONS_SEARCH: {
+        const input = ctx.message.text.trim();
+        const cleanUsername = input.startsWith('@') ? input.slice(1) : input;
+        const allUsers = await this.usersService.getAll();
+        const target = allUsers.find(
+          (u) =>
+            u.telegramId === input ||
+            (u.username && u.username.toLowerCase() === cleanUsername.toLowerCase()),
+        );
+
+        if (!target) {
+          await ctx.reply(
+            '❌ لم يتم العثور على المستخدم.\n\n' +
+              'تأكد أن المستخدم بدأ محادثة مع البوت مسبقاً، ثم أعد إرسال معرفه الصحيح.',
+          );
+          return;
+        }
+
+        this.botEventService.delete(userId);
+        await this.managePermissionsHandler.showPermissionsCard(ctx, target);
+        return;
+      }
+
+      // ==========================================================
+      // إضافة عام دراسي جديد
+      // ==========================================================
+
+      case BotEventType.WAITING_STRUCTURE_YEAR_INPUT: {
+        const text = ctx.message.text.trim();
+        const match = text.match(/(\d{4})\s*[-/]\s*(\d{4})/);
+
+        if (!match) {
+          await ctx.reply(
+            '❌ صيغة العام الدراسي غير صحيحة.\n\n' +
+              'يرجى إرسال العام بصيغة: <code>2025-2026</code> أو <code>2026-2027</code>',
+            { parse_mode: 'HTML' },
+          );
+          return;
+        }
+
+        const startYear = Number(match[1]);
+        const endYear = Number(match[2]);
+
+        try {
+          await this.academicService.createAcademicYear(startYear, endYear);
+          this.botEventService.delete(userId);
+          await ctx.reply(
+            `✅ <b>تمت إضافة العام الدراسي (${startYear} - ${endYear}) بنجاح!</b>`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📅 قائمة الأعوام الدراسية', callback_data: 'struct_years' }],
+                  [{ text: '🏛️ إدارة الهيكل الجامعي', callback_data: 'admin_structure' }],
+                ],
+              },
+            },
+          );
+        } catch (error: any) {
+          await ctx.reply('⚠️ تعذر إضافة العام الدراسي (قد يكون مسجلاً مسبقاً).');
+        }
+        return;
+      }
+
+      // ==========================================================
+      // إضافة كلية / قسم جديد
+      // ==========================================================
+
+      case BotEventType.WAITING_STRUCTURE_DEPARTMENT_INPUT: {
+        const name = ctx.message.text.trim();
+        if (!name || name.length < 2) {
+          await ctx.reply('❌ يرجى كتابة اسم صحيح للكلية أو القسم.');
+          return;
+        }
+
+        try {
+          await this.academicService.createDepartment(name);
+          this.botEventService.delete(userId);
+          await ctx.reply(
+            `✅ <b>تمت إضافة الكلية (${name}) بنجاح!</b>`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🏫 قائمة الكليات', callback_data: 'struct_departments' }],
+                  [{ text: '🏛️ إدارة الهيكل الجامعي', callback_data: 'admin_structure' }],
+                ],
+              },
+            },
+          );
+        } catch (error) {
+          await ctx.reply('⚠️ تعذر إضافة الكلية (قد تكون مسجلة مسبقاً بنفس الاسم).');
+        }
+        return;
+      }
+
+      // ==========================================================
+      // إضافة تخصص جديد
+      // ==========================================================
+
+      case BotEventType.WAITING_STRUCTURE_TRACK_INPUT: {
+        const name = ctx.message.text.trim();
+        const deptId = Number(event.data?.departmentId);
+
+        if (!name || !deptId) {
+          await ctx.reply('❌ يرجى كتابة اسم صحيح للتخصص.');
+          return;
+        }
+
+        try {
+          await this.academicService.createTrack(deptId, name);
+          this.botEventService.delete(userId);
+          await ctx.reply(
+            `✅ <b>تمت إضافة التخصص (${name}) بنجاح!</b>`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🛤️ تخصصات الكلية', callback_data: `struct_tracks_dept/${deptId}` }],
+                  [{ text: '🏛️ إدارة الهيكل الجامعي', callback_data: 'admin_structure' }],
+                ],
+              },
+            },
+          );
+        } catch (error) {
+          await ctx.reply('⚠️ تعذر إضافة التخصص (قد يكون مسجلاً مسبقاً).');
+        }
+        return;
+      }
+
+      // ==========================================================
+      // إضافة مستوى دراسي جديد
+      // ==========================================================
+
+      case BotEventType.WAITING_STRUCTURE_LEVEL_INPUT: {
+        const text = ctx.message.text.trim();
+        const numMatch = text.match(/^(\d+)[\s,-]*(.*)$/);
+
+        if (!numMatch) {
+          await ctx.reply(
+            '❌ صيغة المستوى غير صحيحة.\n\n' +
+              'يرجى كتابة رقم المستوى واسمه:\n' +
+              'مثال: <code>5 المستوى الخامس</code> أو <code>5, المستوى الخامس</code>',
+            { parse_mode: 'HTML' },
+          );
+          return;
+        }
+
+        const number = Number(numMatch[1]);
+        const name = numMatch[2].trim() || `المستوى ${number}`;
+
+        try {
+          await this.academicService.createLevel(number, name);
+          this.botEventService.delete(userId);
+          await ctx.reply(
+            `✅ <b>تمت إضافة (${name}) برقم (#${number}) بنجاح!</b>`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🎓 قائمة المستويات', callback_data: 'struct_levels' }],
+                  [{ text: '🏛️ إدارة الهيكل الجامعي', callback_data: 'admin_structure' }],
+                ],
+              },
+            },
+          );
+        } catch (error) {
+          await ctx.reply('⚠️ تعذر إضافة المستوى (قد يكون رقم المستوى مسجلاً مسبقاً).');
+        }
         return;
       }
 

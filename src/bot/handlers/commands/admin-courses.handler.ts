@@ -1,11 +1,23 @@
 import { Update, Action, Ctx } from 'nestjs-telegraf';
 import { Context, Markup } from 'telegraf';
 
+import { UsersService } from 'src/user/services/user.service';
+
 @Update()
 export class AdminCoursesHandler {
+  constructor(private readonly usersService: UsersService) {}
+
   @Action('admin_courses')
   async handleAdminCourses(@Ctx() ctx: Context) {
     await ctx.answerCbQuery();
+    const telegramId = String(ctx.from?.id);
+    const hasPerm = await this.usersService.hasPermission(telegramId, 'COURSES');
+    if (!hasPerm) {
+      await ctx.answerCbQuery('⛔ ليس لديك صلاحية لإدارة المقررات والكورسات.', {
+        show_alert: true,
+      });
+      return;
+    }
 
     const keyboard = Markup.inlineKeyboard([
       [

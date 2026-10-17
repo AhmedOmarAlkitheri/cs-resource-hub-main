@@ -68,6 +68,21 @@ export class UserRepository {
       },
       data: {
         isAdmin: isAdmin,
+        // إذا ألغي الإشراف يتم تصفير الصلاحيات
+        permissions: isAdmin ? undefined : [],
+      },
+    });
+  }
+
+  // Update granular permissions
+  async updatePermissions(id: string, permissions: string[]) {
+    return await this.prisma.user.update({
+      where: {
+        telegramId: id,
+      },
+      data: {
+        permissions,
+        isAdmin: permissions.length > 0,
       },
     });
   }

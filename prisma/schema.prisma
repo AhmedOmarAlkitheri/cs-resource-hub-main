@@ -44,6 +44,7 @@ model User {
   lastName   String?
   username   String?
   isAdmin    Boolean @default(false)
+  permissions String[] @default([])
 
   // Soft Delete
   isDeleted Boolean   @default(false)

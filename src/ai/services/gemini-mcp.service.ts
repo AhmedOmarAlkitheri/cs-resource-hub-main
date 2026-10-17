@@ -28,7 +28,7 @@ export class GeminiMcpService {
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GEMINI_API_KEY') || '';
     this.model =
-      this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.7-flash';
+      this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.8-flash';
     this.shamelaMcpUrl =
       this.configService.get<string>('SHAMELA_MCP_URL') || '';
     this.turathMcpUrl =
@@ -92,7 +92,7 @@ export class GeminiMcpService {
         );
 
         if (functionCallPart && functionCallPart.functionCall) {
-          const { name, args } = functionCallPart.functionCall;
+          const { name, args, id } = functionCallPart.functionCall;
           this.logger.log(
             `[GeminiMcpService] Tool Call Triggered: ${name} with args: ${JSON.stringify(
               args,
@@ -105,7 +105,7 @@ export class GeminiMcpService {
           // تنفيذ الأداة عبر خادم MCP أو المعالج المخصص
           const toolResult = await this.executeMcpTool(name, args, mode);
 
-          // إرسال نتيجة الأداة للنموذج
+          // إرسال نتيجة الأداة للنموذج مع الـ ID إن وجد
           history.push({
             role: 'user',
             parts: [
@@ -113,6 +113,7 @@ export class GeminiMcpService {
                 functionResponse: {
                   name,
                   response: { result: toolResult },
+                  ...(id ? { id } : {}),
                 },
               },
             ],
@@ -318,10 +319,9 @@ export class GeminiMcpService {
     tools: any[],
   ): Promise<any> {
     const candidateModels = [
-      this.model || 'gemini-3.7-flash',
-      'gemini-3.7-flash',
-      'gemini-3.5-flash',
-      'gemini-flash-latest',
+      this.model || 'gemini-3.8-flash',
+      'gemini-3.8-flash',
+      'gemini-3.5-flash-lite',
     ];
 
     let lastError: Error | null = null;

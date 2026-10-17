@@ -20,4 +20,29 @@ export class DepartmentRepository {
       },
     });
   }
+
+  async create(name: string) {
+    return this.prisma.department.create({
+      data: {
+        name,
+      },
+    });
+  }
+
+  async delete(id: number) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. حذف المقررات المسندة
+      await tx.courseOffering.deleteMany({
+        where: { departmentId: id },
+      });
+      // 2. حذف التخصصات التابعة للقسم
+      await tx.track.deleteMany({
+        where: { departmentId: id },
+      });
+      // 3. حذف القسم
+      return tx.department.delete({
+        where: { id },
+      });
+    });
+  }
 }

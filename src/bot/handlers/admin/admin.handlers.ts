@@ -14,6 +14,8 @@ import { PromoteUserHandler } from './users/promote-user.handler';
 import { DemoteAdminHandler } from './users/demote-user.handler';
 import { DeleteUserHandler } from './users/delete-user.handler';
 import { ListAdminsHandler } from './users/list-admins.handler';
+import { ManagePermissionsHandler } from './users/manage-permissions.handler';
+import { StructureHandler } from './structure/structure.handler';
 
 import { ExternalHandler } from './external/external.handler';
 
@@ -34,7 +36,9 @@ export const AdminHandlers = [
   DemoteAdminHandler,
   DeleteUserHandler,
   ListAdminsHandler,
+  ManagePermissionsHandler,
 
+  StructureHandler,
   ExternalHandler,
 ];
 

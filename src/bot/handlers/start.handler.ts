@@ -61,7 +61,9 @@ export class StartHandler implements OnModuleInit {
       await this.usersService.updateRole(telegramId, true);
     }
 
-    const isAdmin = isSuper || (await this.usersService.isAdmin(telegramId));
+    const user = await this.usersService.getByTelegramId(telegramId);
+    const isAdmin = isSuper || Boolean(user?.isAdmin);
+    const permissions: string[] = (user?.permissions as string[]) || [];
 
     const welcomeMessage = `
 <b>أهلاً وسهلاً بك ${ctx.from.first_name} 👋</b>
@@ -78,7 +80,7 @@ export class StartHandler implements OnModuleInit {
 
     await ctx.reply(welcomeMessage, {
       parse_mode: 'HTML',
-      ...mainMenuKeyboard(Boolean(isAdmin), Number(telegramId)),
+      ...mainMenuKeyboard(Boolean(isAdmin), Number(telegramId), permissions),
     });
   }
 
@@ -108,7 +110,9 @@ export class StartHandler implements OnModuleInit {
       await this.usersService.updateRole(telegramId, true);
     }
 
-    const isAdmin = isSuper || (await this.usersService.isAdmin(telegramId));
+    const user = await this.usersService.getByTelegramId(telegramId);
+    const isAdmin = isSuper || Boolean(user?.isAdmin);
+    const permissions: string[] = (user?.permissions as string[]) || [];
 
     const messageText = `
 🏠 <b>القائمة الرئيسية</b>
@@ -120,7 +124,7 @@ export class StartHandler implements OnModuleInit {
 
     await ctx.editMessageText(messageText, {
       parse_mode: 'HTML',
-      ...mainMenuKeyboard(Boolean(isAdmin), Number(telegramId)),
+      ...mainMenuKeyboard(Boolean(isAdmin), Number(telegramId), permissions),
     });
   }
 }
